@@ -1,5 +1,4 @@
 module Main where
-import System.Posix.Internals (puts)
 
 type Item = String
 type Items = [Item]
@@ -9,6 +8,7 @@ data Command
   | DisplayItems
   | AddItem String
   | Help
+  | Done Int
 
 
 addItem :: Item -> Items -> Items
@@ -17,9 +17,11 @@ addItem item items = item : items
 displayItems :: Items -> String
 displayItems items =
   let
+    displayItem :: Int -> String -> String
     displayItem index item = show index ++ " - " ++ item
     reversedList = reverse items
     displayedItemList = zipWith displayItem [1..] reversedList
+    -- displayedItemList = zipWith displayItem ([1..] :: [Int]) reversedList
   in
     unlines displayedItemList
 
@@ -58,19 +60,35 @@ interactWithUser items = do
       putStrLn "byebye"
       pure ()
 
+    Right (Done index) -> do
+      let result = removeItem index items
+      case result of
+        Left errMsg -> do
+          putStrLn ("Error: " ++ errMsg ++ "\n choose valid item")
+          interactWithUser items
+        Right newItems -> do
+          putStrLn "item's done... /\\"
+          interactWithUser newItems
+
     Right Help -> do
-      putStrLn "Commands: quit, items, help, add - <item to add>"
+      putStrLn "Commands: help, quit, list, add - <item to add>, done <item index>"
       interactWithUser items
 
     Left errMsg -> do
       putStrLn ("error: " ++ errMsg)
+      putStrLn "Choose Commands: help, quit, list, add - <item to add>, done <item index>"
+      interactWithUser items
 
 parseCommand :: String -> Either String Command
 parseCommand line = case words line of
   ["quit"] -> Right Quit
-  ["items"] -> Right DisplayItems
+  ["list"] -> Right DisplayItems
   ["help"] -> Right Help
   "add" : "-" : item -> Right (AddItem (unwords item))
+  ["done", idxStr] ->
+    if all (\c -> elem c "0123456789") idxStr
+      then Right (Done (read idxStr))
+      else Left "Invalid Index"
   _ -> Left "Unknown Command..."
 
 main :: IO ()
